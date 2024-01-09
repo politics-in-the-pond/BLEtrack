@@ -23,17 +23,26 @@ import android.widget.Toast;
 import androidx.annotation.RequiresApi;
 import androidx.core.app.NotificationCompat;
 
+import org.altbeacon.beacon.Beacon;
+import org.altbeacon.beacon.BeaconManager;
+import org.altbeacon.beacon.RangeNotifier;
+import org.altbeacon.beacon.Region;
+import org.altbeacon.beacon.service.RangedBeacon;
+
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Date;
 
 public class WatchForegroundService extends Service {
+    String TAG = "WatchForegroundService";
     private Context context = null;
     private PowerManager.WakeLock wakeLock;
+    private BeaconManager beaconManager;
 
     @RequiresApi(api = Build.VERSION_CODES.O)
     @Override //서비스 시작 시
@@ -43,12 +52,28 @@ public class WatchForegroundService extends Service {
         wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,
                 "bletrack::wakelock");
         wakeLock.acquire();
-
+        initBeaconManager();
         foregroundNotification();
 
-
-
         return START_STICKY;
+    }
+
+    void initBeaconManager(){
+        beaconManager = BeaconManager.getInstanceForApplication(this);
+        // To detect proprietary beacons, you must add a line like below corresponding to your beacon
+        // type.  Do a web search for "setBeaconLayout" to get the proper expression.
+        // beaconManager.getBeaconParsers().add(new BeaconParser().
+        //        setBeaconLayout("m:2-3=beac,i:4-19,i:20-21,i:22-23,p:24-24,d:25-25"));
+        beaconManager.addRangeNotifier(new RangeNotifier() {
+            @Override
+            public void didRangeBeaconsInRegion(Collection<Beacon> beacons, Region region) {
+                if (beacons.size() > 0) {
+                    Log.i(TAG, "The first beacon I see is about "+beacons.iterator().next().getDistance()+" meters away.");
+                }
+            }
+        });
+
+        beaconManager.startRangingBeacons(new Region("myRangingUniqueId", null, null, null));
     }
 
     void foregroundNotification() { // foreground 실행 후 신호 전달 (안하면 앱 강제종료 됨)
