@@ -43,6 +43,10 @@
             </intent-filter>
         </activity>
         <service android:name=".WatchForegroundService"/>
+        <service android:name="org.altbeacon.beacon.service.BeaconService"
+            android:enabled="true"
+            android:isolatedProcess="false"
+            android:label="beacon" />
     </application>
 
 </manifest>

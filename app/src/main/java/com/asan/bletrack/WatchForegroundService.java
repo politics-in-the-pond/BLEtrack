@@ -23,6 +23,8 @@ import android.widget.Toast;
 import androidx.annotation.RequiresApi;
 import androidx.core.app.NotificationCompat;
 
+import com.asan.bletrack.filter.Kalman;
+
 import org.altbeacon.beacon.Beacon;
 import org.altbeacon.beacon.BeaconManager;
 import org.altbeacon.beacon.BeaconParser;
@@ -66,16 +68,46 @@ public class WatchForegroundService extends Service {
         // beaconManager.getBeaconParsers().add(new BeaconParser().
         //        setBeaconLayout("m:2-3=beac,i:4-19,i:20-21,i:22-23,p:24-24,d:25-25"));
         beaconManager.getBeaconParsers().add(new BeaconParser().setBeaconLayout("m:2-3=0215,i:4-19,i:20-21,i:22-23,p:24-24"));
+
+        NotificationCompat.Builder builder;
+        Intent notificationIntent = new Intent(this, MainActivity.class);
+        notificationIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, 0);
+
+        if (Build.VERSION.SDK_INT >= 26) {
+            String CHANNEL_ID = "BLE_service_channel";
+            NotificationChannel channel = new NotificationChannel(CHANNEL_ID,
+                    "BLE Scanning",
+                    NotificationManager.IMPORTANCE_DEFAULT);
+
+            ((NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE))
+                    .createNotificationChannel(channel);
+
+            builder = new NotificationCompat.Builder(this, CHANNEL_ID);
+        } else {
+            builder = new NotificationCompat.Builder(this);
+        }
+
+        builder.setSmallIcon(R.drawable.baseline_pin_drop_24)
+                .setContentTitle("ASAN BLE")
+                .setContentIntent(pendingIntent);
         beaconManager.addRangeNotifier(new RangeNotifier() {
+            Kalman kalman = new Kalman();
             @Override
             public void didRangeBeaconsInRegion(Collection<Beacon> beacons, Region region) {
-                if (beacons.size() > 0) {
 
-                    Log.i(TAG, "The first beacon I see is about "+beacons.iterator().next().getDistance()+" meters away.");
+                if (beacons.size() > 0) {
+                    Beacon beacon = beacons.iterator().next();
+                    int rssi = beacon.getRssi();
+                    double frssi = kalman.do_calc((double) rssi);
+                    String address = beacon.getBluetoothAddress();
+                    String name = beacon.getParserIdentifier();
+                    Log.i(TAG, "The first beacon, raw rssi :"+ Integer.toString(rssi) + " filtered: " + Double.toString(frssi) + " address : " + address + " name : "+ name);
                 }
             }
         });
-
+        beaconManager.enableForegroundServiceScanning(builder.build(), 456);
+        beaconManager.setEnableScheduledScanJobs(false);
         beaconManager.startRangingBeacons(new Region("myRangingUniqueId", null, null, null));
     }
 

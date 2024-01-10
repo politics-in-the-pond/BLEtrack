@@ -14,7 +14,7 @@ public class Kalman {
 
     public Kalman(){
         //initial value
-        double V = 10;
+        double V = -60;
 
         double mn = 0.1;
         double pn = 1e-5;
