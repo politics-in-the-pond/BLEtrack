@@ -26,11 +26,13 @@ import androidx.core.app.NotificationCompat;
 import com.asan.bletrack.filter.Kalman;
 
 import org.altbeacon.beacon.Beacon;
+import org.altbeacon.beacon.BeaconConsumer;
 import org.altbeacon.beacon.BeaconManager;
 import org.altbeacon.beacon.BeaconParser;
 import org.altbeacon.beacon.RangeNotifier;
 import org.altbeacon.beacon.Region;
 import org.altbeacon.beacon.service.RangedBeacon;
+import org.altbeacon.beacon.startup.BootstrapNotifier;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -40,8 +42,9 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
+import java.util.HashMap;
 
-public class WatchForegroundService extends Service {
+public class WatchForegroundService extends Service implements BootstrapNotifier, BeaconConsumer, RangeNotifier{
     String TAG = "WatchForegroundService";
     private Context context = null;
     private PowerManager.WakeLock wakeLock;
@@ -63,11 +66,8 @@ public class WatchForegroundService extends Service {
 
     void initBeaconManager(){
         beaconManager = BeaconManager.getInstanceForApplication(this);
-        // To detect proprietary beacons, you must add a line like below corresponding to your beacon
-        // type.  Do a web search for "setBeaconLayout" to get the proper expression.
-        // beaconManager.getBeaconParsers().add(new BeaconParser().
-        //        setBeaconLayout("m:2-3=beac,i:4-19,i:20-21,i:22-23,p:24-24,d:25-25"));
         beaconManager.getBeaconParsers().add(new BeaconParser().setBeaconLayout("m:2-3=0215,i:4-19,i:20-21,i:22-23,p:24-24"));
+        HashMap<String, Kalman> kalmanmap = new HashMap<String, Kalman>();
 
         NotificationCompat.Builder builder;
         Intent notificationIntent = new Intent(this, MainActivity.class);
@@ -92,16 +92,23 @@ public class WatchForegroundService extends Service {
                 .setContentTitle("ASAN BLE")
                 .setContentIntent(pendingIntent);
         beaconManager.addRangeNotifier(new RangeNotifier() {
-            Kalman kalman = new Kalman();
             @Override
             public void didRangeBeaconsInRegion(Collection<Beacon> beacons, Region region) {
-
                 if (beacons.size() > 0) {
                     Beacon beacon = beacons.iterator().next();
                     int rssi = beacon.getRssi();
-                    double frssi = kalman.do_calc((double) rssi);
+
                     String address = beacon.getBluetoothAddress();
                     String name = beacon.getParserIdentifier();
+                    Kalman kalman = new Kalman();
+                    if(kalmanmap.containsKey(address)){
+                        kalman = kalmanmap.get(address);
+                    }else{
+                        kalmanmap.put(address, new Kalman());
+                        kalman = kalmanmap.get(address);
+                    }
+                    double frssi = kalman.do_calc((double) rssi);
+                    kalmanmap.replace(address, kalman);
                     Log.i(TAG, "The first beacon, raw rssi :"+ Integer.toString(rssi) + " filtered: " + Double.toString(frssi) + " address : " + address + " name : "+ name);
                 }
             }
@@ -142,5 +149,30 @@ public class WatchForegroundService extends Service {
     @Override
     public IBinder onBind(Intent intent) {
         throw new UnsupportedOperationException("Not yet implemented");
+    }
+
+    @Override
+    public void didRangeBeaconsInRegion(Collection<Beacon> beacons, Region region) {
+
+    }
+
+    @Override
+    public void onBeaconServiceConnect() {
+
+    }
+
+    @Override
+    public void didEnterRegion(Region region) {
+
+    }
+
+    @Override
+    public void didExitRegion(Region region) {
+
+    }
+
+    @Override
+    public void didDetermineStateForRegion(int state, Region region) {
+
     }
 }

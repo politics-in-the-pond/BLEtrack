@@ -6,7 +6,9 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.util.Log;
+import android.view.View;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.TextView;
 import com.asan.bletrack.filter.Kalman;
 
@@ -18,6 +20,7 @@ public class MainActivity extends Activity {
     private TextView deviceidText;
     private ActivityMainBinding binding;
     private Intent foregroundService;
+    private ImageView setting;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -39,5 +42,13 @@ public class MainActivity extends Activity {
         setContentView(binding.getRoot());
 
         deviceidText = binding.deviceid;
+        setting = binding.setting;
+
+        setting.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+
+            }
+        });
     }
 }
