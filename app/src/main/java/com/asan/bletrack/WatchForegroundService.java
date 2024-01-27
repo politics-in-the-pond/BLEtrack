@@ -72,7 +72,7 @@ public class WatchForegroundService extends Service implements BootstrapNotifier
         NotificationCompat.Builder builder;
         Intent notificationIntent = new Intent(this, MainActivity.class);
         notificationIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
-        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, 0);
+        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, PendingIntent.FLAG_IMMUTABLE);
 
         if (Build.VERSION.SDK_INT >= 26) {
             String CHANNEL_ID = "BLE_service_channel";
@@ -100,11 +100,11 @@ public class WatchForegroundService extends Service implements BootstrapNotifier
 
                     String address = beacon.getBluetoothAddress();
                     String name = beacon.getParserIdentifier();
-                    Kalman kalman = new Kalman();
+                    Kalman kalman = null;
                     if(kalmanmap.containsKey(address)){
                         kalman = kalmanmap.get(address);
                     }else{
-                        kalmanmap.put(address, new Kalman());
+                        kalmanmap.put(address, new Kalman((double) rssi));
                         kalman = kalmanmap.get(address);
                     }
                     double frssi = kalman.do_calc((double) rssi);
@@ -123,7 +123,7 @@ public class WatchForegroundService extends Service implements BootstrapNotifier
 
         Intent notificationIntent = new Intent(this, MainActivity.class);
         notificationIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
-        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, 0);
+        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, PendingIntent.FLAG_IMMUTABLE);
 
         if (Build.VERSION.SDK_INT >= 26) {
             String CHANNEL_ID = "positioning_service_channel";

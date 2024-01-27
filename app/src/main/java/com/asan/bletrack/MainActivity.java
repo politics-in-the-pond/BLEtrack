@@ -34,6 +34,7 @@ public class MainActivity extends Activity {
         startForegroundService(foregroundService);
 
         String deviceid = Settings.Secure.getString(getApplicationContext().getContentResolver(), Settings.Secure.ANDROID_ID);
+        StaticResources.deviceID = deviceid;
         deviceidText.setText(deviceid);
     }
 

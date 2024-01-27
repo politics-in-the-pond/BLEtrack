@@ -12,9 +12,9 @@ import org.apache.commons.math3.linear.RealVector;
 public class Kalman {
     KalmanFilter filter;
 
-    public Kalman(){
+    public Kalman(double initial_value){
         //initial value
-        double V = -60;
+        double V = initial_value;
 
         double mn = 0.1;
         double pn = 1e-5;

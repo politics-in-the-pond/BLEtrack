@@ -1,4 +1,6 @@
 package com.asan.bletrack;
 
-public class PasswordActivity {
+import android.app.Activity;
+
+public class PasswordActivity extends Activity {
 }
