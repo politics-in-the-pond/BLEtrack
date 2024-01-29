@@ -40,7 +40,7 @@ public class WatchForegroundService extends Service{
     public int onStartCommand(Intent intent, int flags, int startId){
         Log.d("WatchForegroundService","measure start");
         PowerManager pm = (PowerManager) getApplicationContext().getSystemService(POWER_SERVICE);
-        wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,
+        wakeLock = pm.newWakeLock(PowerManager.FULL_WAKE_LOCK,
                 "bletrack::wakelock");
         wakeLock.acquire();
         if(!is_started) {
@@ -56,8 +56,10 @@ public class WatchForegroundService extends Service{
         beaconManager = BeaconManager.getInstanceForApplication(this);
         beaconManager.getBeaconParsers().add(new BeaconParser().setBeaconLayout("m:2-3=0215,i:4-19,i:20-21,i:22-23,p:24-24"));
         beaconManager.getBeaconParsers().add(new BeaconParser().setBeaconLayout("m:2-3=beac,i:4-19,i:20-21,i:22-23,p:24-24,d:25-25"));
-        beaconManager.setBackgroundScanPeriod(1000);
+        beaconManager.setBackgroundScanPeriod(2000);
         beaconManager.setBackgroundBetweenScanPeriod(0);
+        beaconManager.setForegroundScanPeriod(2000);
+        beaconManager.setForegroundBetweenScanPeriod(0);
         HashMap<String, Kalman> kalmanmap = new HashMap<String, Kalman>();
 
         NotificationCompat.Builder builder;
@@ -86,13 +88,12 @@ public class WatchForegroundService extends Service{
             @Override
             public void didRangeBeaconsInRegion(Collection<Beacon> beacons, Region region) {
                 int size = beacons.size();
+                Log.d("BLE", Integer.toString(size));
                 WatchItem watchitem = new WatchItem();
-                while (size > 0) {
-                    Beacon beacon = beacons.iterator().next();
+                for (Beacon beacon : beacons) {
                     BeaconSignal tmp = new BeaconSignal();
                     int rssi = beacon.getRssi();
-                    String address = beacon.getBluetoothAddress();
-                    String name = beacon.getParserIdentifier();
+                    String address = beacon.getId1().toString() + "-" + beacon.getId2().toString() + "-" + beacon.getId3().toString();
                     Kalman kalman = null;
                     if(kalmanmap.containsKey(address)){
                         kalman = kalmanmap.get(address);
@@ -106,7 +107,6 @@ public class WatchForegroundService extends Service{
                     tmp.setRssi(frssi);
                     tmp.setBLEaddress(address);
                     watchitem.item.add(tmp);
-                    size = size - 1;
                 }
                 watchitem.deviceID = StaticResources.deviceID;
             }
