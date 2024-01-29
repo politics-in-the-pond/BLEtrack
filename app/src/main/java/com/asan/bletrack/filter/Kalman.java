@@ -17,7 +17,7 @@ public class Kalman {
         double V = initial_value;
 
         double mn = 0.1;
-        double pn = 1e-5;
+        double pn = 0.1;
 
         RealMatrix A = new Array2DRowRealMatrix(new double[] { 1 });
         RealMatrix H = new Array2DRowRealMatrix(new double[] { 1 });

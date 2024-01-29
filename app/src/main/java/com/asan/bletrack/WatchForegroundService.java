@@ -1,54 +1,39 @@
 package com.asan.bletrack;
 
-import static android.content.Context.POWER_SERVICE;
-
-import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
-import android.hardware.Sensor;
-import android.hardware.SensorEvent;
-import android.hardware.SensorEventListener;
-import android.hardware.SensorManager;
 import android.os.Build;
-import android.os.Environment;
 import android.os.IBinder;
 import android.os.PowerManager;
 import android.util.Log;
-import android.widget.Toast;
 
 import androidx.annotation.RequiresApi;
 import androidx.core.app.NotificationCompat;
 
+import com.asan.bletrack.activities.MainActivity;
+import com.asan.bletrack.dto.BeaconSignal;
+import com.asan.bletrack.dto.WatchItem;
 import com.asan.bletrack.filter.Kalman;
 
 import org.altbeacon.beacon.Beacon;
-import org.altbeacon.beacon.BeaconConsumer;
 import org.altbeacon.beacon.BeaconManager;
 import org.altbeacon.beacon.BeaconParser;
 import org.altbeacon.beacon.RangeNotifier;
 import org.altbeacon.beacon.Region;
-import org.altbeacon.beacon.service.RangedBeacon;
-import org.altbeacon.beacon.startup.BootstrapNotifier;
 
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Date;
 import java.util.HashMap;
 
-public class WatchForegroundService extends Service implements BootstrapNotifier, BeaconConsumer, RangeNotifier{
+public class WatchForegroundService extends Service{
     String TAG = "WatchForegroundService";
     private Context context = null;
     private PowerManager.WakeLock wakeLock;
     private BeaconManager beaconManager;
+    boolean is_started = false;
 
     @RequiresApi(api = Build.VERSION_CODES.O)
     @Override //서비스 시작 시
@@ -58,8 +43,11 @@ public class WatchForegroundService extends Service implements BootstrapNotifier
         wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK,
                 "bletrack::wakelock");
         wakeLock.acquire();
-        initBeaconManager();
-        foregroundNotification();
+        if(!is_started) {
+            initBeaconManager();
+            foregroundNotification();
+        }
+        is_started = true;
 
         return START_STICKY;
     }
@@ -67,6 +55,9 @@ public class WatchForegroundService extends Service implements BootstrapNotifier
     void initBeaconManager(){
         beaconManager = BeaconManager.getInstanceForApplication(this);
         beaconManager.getBeaconParsers().add(new BeaconParser().setBeaconLayout("m:2-3=0215,i:4-19,i:20-21,i:22-23,p:24-24"));
+        beaconManager.getBeaconParsers().add(new BeaconParser().setBeaconLayout("m:2-3=beac,i:4-19,i:20-21,i:22-23,p:24-24,d:25-25"));
+        beaconManager.setBackgroundScanPeriod(1000);
+        beaconManager.setBackgroundBetweenScanPeriod(0);
         HashMap<String, Kalman> kalmanmap = new HashMap<String, Kalman>();
 
         NotificationCompat.Builder builder;
@@ -94,10 +85,12 @@ public class WatchForegroundService extends Service implements BootstrapNotifier
         beaconManager.addRangeNotifier(new RangeNotifier() {
             @Override
             public void didRangeBeaconsInRegion(Collection<Beacon> beacons, Region region) {
-                if (beacons.size() > 0) {
+                int size = beacons.size();
+                WatchItem watchitem = new WatchItem();
+                while (size > 0) {
                     Beacon beacon = beacons.iterator().next();
+                    BeaconSignal tmp = new BeaconSignal();
                     int rssi = beacon.getRssi();
-
                     String address = beacon.getBluetoothAddress();
                     String name = beacon.getParserIdentifier();
                     Kalman kalman = null;
@@ -109,8 +102,13 @@ public class WatchForegroundService extends Service implements BootstrapNotifier
                     }
                     double frssi = kalman.do_calc((double) rssi);
                     kalmanmap.replace(address, kalman);
-                    Log.i(TAG, "The first beacon, raw rssi :"+ Integer.toString(rssi) + " filtered: " + Double.toString(frssi) + " address : " + address + " name : "+ name);
+                    Log.i(TAG, "Detected beacon, raw rssi :"+ Integer.toString(rssi) + " filtered: " + Double.toString(frssi) + " address : " + address);
+                    tmp.setRssi(frssi);
+                    tmp.setBLEaddress(address);
+                    watchitem.item.add(tmp);
+                    size = size - 1;
                 }
+                watchitem.deviceID = StaticResources.deviceID;
             }
         });
         beaconManager.enableForegroundServiceScanning(builder.build(), 456);
@@ -126,9 +124,9 @@ public class WatchForegroundService extends Service implements BootstrapNotifier
         PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, PendingIntent.FLAG_IMMUTABLE);
 
         if (Build.VERSION.SDK_INT >= 26) {
-            String CHANNEL_ID = "positioning_service_channel";
+            String CHANNEL_ID = "BLE_service_channel";
             NotificationChannel channel = new NotificationChannel(CHANNEL_ID,
-                    "Positioning Service Channel",
+                    "BLE Scanning",
                     NotificationManager.IMPORTANCE_DEFAULT);
 
             ((NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE))
@@ -149,30 +147,5 @@ public class WatchForegroundService extends Service implements BootstrapNotifier
     @Override
     public IBinder onBind(Intent intent) {
         throw new UnsupportedOperationException("Not yet implemented");
-    }
-
-    @Override
-    public void didRangeBeaconsInRegion(Collection<Beacon> beacons, Region region) {
-
-    }
-
-    @Override
-    public void onBeaconServiceConnect() {
-
-    }
-
-    @Override
-    public void didEnterRegion(Region region) {
-
-    }
-
-    @Override
-    public void didExitRegion(Region region) {
-
-    }
-
-    @Override
-    public void didDetermineStateForRegion(int state, Region region) {
-
     }
 }
