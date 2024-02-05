@@ -52,6 +52,7 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         network_check();
+        server_check();
     }
 
     protected void UIBind(){
@@ -79,6 +80,19 @@ public class MainActivity extends Activity {
             ping.join();
             if(ping.isSuccess()){
                 network.setImageResource(R.drawable.baseline_check_24);
+            }
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+    }
+
+    protected void server_check(){
+        Ping ping = new Ping(StaticResources.ServerURL);
+        ping.start();
+        try{
+            ping.join();
+            if(ping.isSuccess()){
+                server.setImageResource(R.drawable.baseline_check_24);
             }
         }catch (Exception e){
             e.printStackTrace();
